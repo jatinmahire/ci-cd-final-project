@@ -10,12 +10,40 @@ for tool in oc tkn; do
   }
 done
 
-NAMESPACE=$(oc project -q)
+if ! oc whoami >/dev/null 2>&1; then
+  echo "OpenShift is not connected in this terminal." >&2
+  echo "Open the lab's Skills Network Toolbox > Cloud > OpenShift, start the cluster," >&2
+  echo "and use its configured terminal or login instructions. Then rerun this script." >&2
+  exit 1
+fi
+
+NAMESPACE=$(oc project -q 2>/dev/null || true)
+if [[ -z "$NAMESPACE" ]]; then
+  if ! PROJECTS=$(oc projects -q); then
+    echo "Unable to list your OpenShift projects. Check the lab's OpenShift connection." >&2
+    exit 1
+  fi
+  LAB_PROJECTS=()
+  while IFS= read -r project; do
+    case "$project" in
+      sn-labs-*|skills-network-*|lab-*) LAB_PROJECTS+=("$project") ;;
+    esac
+  done <<< "$PROJECTS"
+  if [[ ${#LAB_PROJECTS[@]} -eq 1 ]]; then
+    oc project "${LAB_PROJECTS[0]}"
+    NAMESPACE=${LAB_PROJECTS[0]}
+  else
+    echo "No active OpenShift project. Available projects:" >&2
+    printf '%s\n' "$PROJECTS" >&2
+    echo "Run: oc project YOUR_COURSE_PROJECT_NAME" >&2
+    echo "Then rerun: bash bin/deploy-openshift.sh" >&2
+    exit 1
+  fi
+fi
 case "$NAMESPACE" in
   sn-labs-*|skills-network-*|lab-*) ;;
   *) echo "Select your course lab namespace before running this script: $NAMESPACE" >&2; exit 1 ;;
 esac
-oc whoami >/dev/null
 mkdir -p evidence
 
 echo "Preparing the CI/CD pipeline in course namespace $NAMESPACE"
