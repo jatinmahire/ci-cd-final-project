@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy source code
 COPY src/ ./src/
@@ -15,13 +15,14 @@ COPY src/ ./src/
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S service -u 1001 -G nodejs && \
-    chown -R service:nodejs /app
+    chown -R service:nodejs /app && \
+    chgrp -R 0 /app && chmod -R g=u /app
 
-USER service
+USER 1001
 
 # Expose port
-ENV PORT=8000
+ENV NODE_ENV=production PORT=8000
 EXPOSE $PORT
 
 # Start application
-CMD ["npm", "start"]
+CMD ["node", "src/app.js"]

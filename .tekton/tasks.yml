@@ -1,0 +1,95 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  description: Remove the contents of the source workspace before cloning.
+  workspaces:
+    - name: source
+  steps:
+    - name: remove
+      image: alpine:3
+      env:
+        - name: WORKSPACE_SOURCE_PATH
+          value: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        case "${WORKSPACE_SOURCE_PATH:-}" in
+          ""|"/") echo "Refusing to clean an empty path or root directory" >&2; exit 1 ;;
+        esac
+        if [ -d "${WORKSPACE_SOURCE_PATH}" ]; then
+          cd "${WORKSPACE_SOURCE_PATH}"
+          [ "$(pwd -P)" != "/" ] || exit 1
+          echo "Removing workspace contents from ${WORKSPACE_SOURCE_PATH} ..."
+          rm -rf -- "${WORKSPACE_SOURCE_PATH:?}"/*
+          rm -rf -- "${WORKSPACE_SOURCE_PATH}"/.[!.]*
+          rm -rf -- "${WORKSPACE_SOURCE_PATH}"/..?*
+        fi
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: eslint
+spec:
+  workspaces:
+    - name: source
+  params:
+    - name: args
+      description: Additional arguments passed to the project's ESLint script.
+      type: string
+      default: '--ext .js'
+  steps:
+    - name: lint
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: LINT_ARGS
+          value: $(params.args)
+        - name: npm_config_cache
+          value: /tmp/npm-cache
+      script: |
+        #!/bin/sh
+        set -eu
+        set -f
+        echo "Installing dependencies..."
+        npm ci
+        echo "Running ESLint..."
+        npm run lint -- $LINT_ARGS
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: jest-test
+spec:
+  workspaces:
+    - name: source
+  params:
+    - name: args
+      description: Arguments passed to Jest; -v is treated as --verbose.
+      type: string
+      default: '-v'
+  steps:
+    - name: jest
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: JEST_ARGS
+          value: $(params.args)
+        - name: npm_config_cache
+          value: /tmp/npm-cache
+      script: |
+        #!/bin/sh
+        set -eu
+        set -f
+        echo "Installing dependencies..."
+        npm ci
+        echo "Running Jest tests..."
+        if [ "$JEST_ARGS" = "-v" ]; then
+          JEST_ARGS="--verbose"
+        fi
+        npm test -- --runInBand $JEST_ARGS

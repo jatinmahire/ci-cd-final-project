@@ -1,0 +1,84 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-cd-final-project
+spec:
+  description: Lint, test, build, and deploy the JavaScript counter service.
+  params:
+    - name: repo-url
+      type: string
+      default: https://github.com/jatinmahire/ci-cd-final-project.git
+    - name: revision
+      type: string
+      default: main
+    - name: app-name
+      type: string
+      default: counter-service
+    - name: build-image
+      type: string
+      description: Fully qualified image in the lab namespace's internal registry.
+  workspaces:
+    - name: output
+  tasks:
+    - name: cleanup
+      taskRef:
+        name: cleanup
+      workspaces:
+        - name: source
+          workspace: output
+    - name: git-clone
+      runAfter: [cleanup]
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+        - name: deleteExisting
+          value: 'false'
+      workspaces:
+        - name: output
+          workspace: output
+    - name: eslint
+      runAfter: [git-clone]
+      taskRef:
+        name: eslint
+      workspaces:
+        - name: source
+          workspace: output
+    - name: jest
+      runAfter: [eslint]
+      taskRef:
+        name: jest-test
+      workspaces:
+        - name: source
+          workspace: output
+    - name: buildah
+      runAfter: [jest]
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: $(params.build-image)
+        - name: STORAGE_DRIVER
+          value: vfs
+        - name: TLSVERIFY
+          value: 'false'
+      workspaces:
+        - name: source
+          workspace: output
+    - name: deploy
+      runAfter: [buildah]
+      taskRef:
+        name: openshift-client
+      params:
+        - name: VERSION
+          value: latest
+        - name: SCRIPT
+          value: |
+            set -e
+            oc create deployment $(params.app-name) --image=$(params.build-image) --port=8000 --dry-run=client -o yaml | oc apply -f -
+            oc set image deployment/$(params.app-name) $(params.app-name)=$(params.build-image)
+            oc rollout status deployment/$(params.app-name) --timeout=180s
+            oc logs deployment/$(params.app-name) --tail=40

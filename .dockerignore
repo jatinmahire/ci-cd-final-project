@@ -1,0 +1,9 @@
+node_modules
+coverage
+.git
+.github
+.tekton
+tests
+evidence
+*.log
+.env*

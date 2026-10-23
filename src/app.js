@@ -61,7 +61,7 @@ app.use('*', (req, res) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log('*'.repeat(70))
-    console.log('  S E R V I C E   R U N N I N G  '.padStart(45, '*').padEnd(70, '*'))
+    console.log(' SERVICERUNNING '.padStart(42, '*').padEnd(70, '*'))
     console.log('*'.repeat(70))
     console.log(`Server running on port ${PORT}`)
   })
