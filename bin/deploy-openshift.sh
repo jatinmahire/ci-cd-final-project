@@ -64,12 +64,11 @@ fi
 oc apply -f .tekton/pvc.yml
 oc apply -f .tekton/pipeline.yml
 if ! oc get serviceaccount pipeline >/dev/null 2>&1; then
-  oc create serviceaccount pipeline
+  echo "The course lab's preconfigured pipeline service account is missing." >&2
+  echo "Initialize the CI/CD with OpenShift lab before running this deployment." >&2
+  exit 1
 fi
-oc create rolebinding cicd-pipeline-editor --clusterrole=edit \
-  --serviceaccount="$NAMESPACE:pipeline" --dry-run=client -o yaml | oc apply -f -
-oc create rolebinding cicd-pipeline-image-builder --clusterrole=system:image-builder \
-  --serviceaccount="$NAMESPACE:pipeline" --dry-run=client -o yaml | oc apply -f -
+echo "Using the course lab's preconfigured pipeline service account and permissions."
 oc create imagestream counter-service --dry-run=client -o yaml | oc apply -f -
 
 BUILD_IMAGE="image-registry.openshift-image-registry.svc:5000/$NAMESPACE/counter-service:run-$(date +%s)"
