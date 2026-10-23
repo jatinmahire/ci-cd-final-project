@@ -78,3 +78,5 @@ db/*
 # Build output
 dist/
 build/
+# Shared npm download cache used by Tekton tasks
+.npm-cache/

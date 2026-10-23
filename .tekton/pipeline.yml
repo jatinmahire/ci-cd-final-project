@@ -58,6 +58,7 @@ spec:
       runAfter: [jest]
       taskRef:
         name: buildah
+        kind: ClusterTask
       params:
         - name: IMAGE
           value: $(params.build-image)

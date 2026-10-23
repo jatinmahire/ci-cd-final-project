@@ -54,9 +54,10 @@ oc apply -f .tekton/tasks.yml
 if ! oc get task git-clone >/dev/null 2>&1; then
   oc apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.9/git-clone.yaml
 fi
-if ! oc get task buildah >/dev/null 2>&1; then
-  oc apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/buildah/0.9/buildah.yaml
-fi
+oc get clustertask buildah >/dev/null || {
+  echo "The course lab's OpenShift Buildah ClusterTask is unavailable." >&2
+  exit 1
+}
 if ! oc get task openshift-client >/dev/null 2>&1; then
   oc apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/openshift-client/0.2/openshift-client.yaml
 fi
@@ -82,7 +83,7 @@ spec:
     name: ci-cd-final-project
   serviceAccountName: pipeline
   timeouts:
-    pipeline: 20m
+    pipeline: 45m
   params:
     - name: repo-url
       value: https://github.com/jatinmahire/ci-cd-final-project.git

@@ -51,13 +51,13 @@ spec:
         - name: LINT_ARGS
           value: $(params.args)
         - name: npm_config_cache
-          value: /tmp/npm-cache
+          value: $(workspaces.source.path)/.npm-cache
       script: |
         #!/bin/sh
         set -eu
         set -f
         echo "Installing dependencies..."
-        npm ci
+        npm ci --no-audit --no-fund
         echo "Running ESLint..."
         npm run lint -- $LINT_ARGS
 ---
@@ -81,13 +81,17 @@ spec:
         - name: JEST_ARGS
           value: $(params.args)
         - name: npm_config_cache
-          value: /tmp/npm-cache
+          value: $(workspaces.source.path)/.npm-cache
       script: |
         #!/bin/sh
         set -eu
         set -f
-        echo "Installing dependencies..."
-        npm ci
+        if [ ! -x node_modules/.bin/jest ]; then
+          echo "Installing dependencies..."
+          npm ci --no-audit --no-fund
+        else
+          echo "Using dependencies installed by the ESLint task."
+        fi
         echo "Running Jest tests..."
         if [ "$JEST_ARGS" = "-v" ]; then
           JEST_ARGS="--verbose"

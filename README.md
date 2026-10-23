@@ -74,7 +74,13 @@ The script checks the lab namespace, installs missing namespaced catalog tasks,
 applies the PVC and pipeline, starts a PipelineRun with a unique image tag, and
 collects real logs. It does not claim a successful run unless Tekton reports
 `Succeeded=True` and the deployed application's logs contain `SERVICERUNNING`
-and port `8000`. Buildah requires the execution permissions provided by the lab.
+and port `8000`. The image build uses the lab's OpenShift `buildah` ClusterTask,
+which works with the existing `pipeline` account's security settings.
+
+ESLint installs the locked dependencies once, and Jest reuses those dependencies
+from the shared workspace. A standalone Jest task installs them when needed.
+Both tasks share an npm download cache; installation skips the optional audit
+request so the pipeline only waits for the dependencies it needs.
 
 The course parameter `-v` is translated to Jest's `--verbose` flag so the task
 executes the tests rather than printing a version number.
